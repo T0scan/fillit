@@ -1,0 +1,29 @@
+:root{
+    background-color: #000;
+    color:#fff;
+}
+
+body{
+    display: flex;
+    justify-content: space-around;
+    align-content: space-between;
+}
+
+
+.game-ui{
+    text-align: center;
+}
+
+.game-ui > ul{
+    display: inline-flex;
+}
+
+.game-ui > ul > li{
+    color:limegreen;
+    list-style: none;
+    padding: 0px 25px;
+}
+
+canvas{
+    border: 2px solid #1e41b3;
+}
