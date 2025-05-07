@@ -68,7 +68,7 @@ document.addEventListener('keydown', (e) => controller(e));
 
 function reDraw(){
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(ship, shipX, shipY, 40, 40);
+    ctx.drawImage(ship, shipX, shipY, 20, 20);
     requestAnimationFrame(reDraw)
 }
 
