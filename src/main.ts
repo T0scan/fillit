@@ -28,6 +28,19 @@ async function init() {
     const gameContainer = new PIXI.Container();
     app.stage.addChild(gameContainer);
 
+    let shakeDuration = 0;
+    let shakeIntensity = 0;
+
+    function triggerScreenShake(intensity: number = 8, duration: number = 12) {
+        shakeIntensity = intensity;
+        shakeDuration = duration;
+    }
+
+    let freezeTimer = 0;
+    function triggerHitStop(frames: number = 6) {
+        freezeTimer = frames;
+    }
+
     function handleResize() {
         const screenWidth = app.screen.width;
         const screenHeight = app.screen.height;
@@ -76,9 +89,7 @@ async function init() {
     let enemies: Enemy[] = [];
 
     function createEnemiesForLevel(levelNum: number): Enemy[] {
-        // Fair enemy scaling: start with 2 enemies, cap at 5 enemies max to keep levels beatable
         const enemyCount = Math.min(2 + Math.floor((levelNum - 1) / 2), 5);
-        // Moderate speed scaling per level
         const baseSpeed = 2.0 + (levelNum - 1) * 0.3;
 
         const enemyList: Enemy[] = [];
@@ -218,6 +229,7 @@ async function init() {
 
     function checkCompletion() {
         const regions = findEmptyRegions(grid);
+        let claimed = false;
         
         // Find regions that don't contain any enemies
         for (const region of regions) {
@@ -232,11 +244,15 @@ async function init() {
             }
 
             if (!hasEnemy) {
-                // Fill this region
+                claimed = true;
                 for (const [r, c] of region) {
                     grid.setCell(r, c, CellType.FILLED);
                 }
-                particles.emit(region[0][1] * GRID_SIZE, region[0][0] * GRID_SIZE, 0xfacc15, 50);
+                // Emit celebratory particles on filled area
+                const sampleCenter = region[Math.floor(region.length / 2)];
+                if (sampleCenter) {
+                    particles.emit(sampleCenter[1] * GRID_SIZE, sampleCenter[0] * GRID_SIZE, 0xfacc15, 60, 1.2);
+                }
             }
         }
 
@@ -249,11 +265,30 @@ async function init() {
             }
         }
         
+        if (claimed) {
+            triggerScreenShake(5, 8);
+        }
+
         updateHUD();
 
         const currentPct = grid.getFillPercentage();
         if (currentPct >= TARGET_FILL_PERCENTAGE) {
             currentState = GameState.LEVEL_COMPLETE;
+            triggerScreenShake(12, 16);
+            triggerHitStop(10);
+
+            // Victory celebration particle burst
+            for (let i = 0; i < 5; i++) {
+                particles.emit(
+                    Math.random() * WIDTH,
+                    Math.random() * HEIGHT,
+                    [0x38bdf8, 0x4ade80, 0xfacc15, 0xf43f5e][i % 4],
+                    40,
+                    1.5,
+                    0.1
+                );
+            }
+
             if (levelCompleteDescEl) {
                 levelCompleteDescEl.textContent = `You claimed ${currentPct.toFixed(1)}% coverage on Level ${currentLevel}!`;
             }
@@ -268,24 +303,50 @@ async function init() {
     app.ticker.add((ticker) => {
         const delta = ticker.deltaTime;
 
+        // Screen shake update
+        const screenWidth = app.screen.width;
+        const screenHeight = app.screen.height;
+        const baseScale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
+        const baseX = (screenWidth - WIDTH * baseScale) / 2;
+        const baseY = (screenHeight - HEIGHT * baseScale) / 2;
+
+        if (shakeDuration > 0) {
+            shakeDuration--;
+            const offsetX = (Math.random() - 0.5) * shakeIntensity * 2;
+            const offsetY = (Math.random() - 0.5) * shakeIntensity * 2;
+            gameContainer.x = baseX + offsetX;
+            gameContainer.y = baseY + offsetY;
+        } else {
+            gameContainer.x = baseX;
+            gameContainer.y = baseY;
+        }
+
+        // Hit stop freeze frame logic
+        if (freezeTimer > 0) {
+            freezeTimer--;
+            return;
+        }
+
         if (currentState === GameState.PLAYING) {
             const wasOnTrail = player.onTrail;
             player.update(grid);
 
             if (wasOnTrail && !player.onTrail) {
-                // Player just stepped off trail onto filled area
                 checkCompletion();
             }
 
             for (const enemy of enemies) {
                 if (enemy.update(grid)) {
-                    // Hit trail! Reset player and clear trail
+                    // Hit trail! Trigger hit stop and screen shake
+                    triggerScreenShake(10, 12);
+                    triggerHitStop(8);
+
                     grid.clearTrail();
                     player.r = 0;
                     player.c = 0;
                     player.onTrail = false;
                     player.direction = { dr: 0, dc: 0 };
-                    particles.emit(player.x, player.y, 0xf87171, 30);
+                    particles.emit(player.x, player.y, 0xf87171, 40, 1.4);
                 }
             }
         }
