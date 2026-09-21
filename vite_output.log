@@ -1,0 +1,11 @@
+
+> fill-it-game@1.0.0 dev
+> vite
+
+
+  VITE v8.0.10  ready in 300 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+5:57:55 AM [vite] (client) page reload src/main.ts
+5:58:37 AM [vite] (client) page reload src/player.ts
