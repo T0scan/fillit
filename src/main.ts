@@ -9,11 +9,44 @@ import { ParticleSystem } from './particles';
 async function init() {
     const app = new PIXI.Application();
     await app.init({
-        width: WIDTH,
-        height: HEIGHT,
-        backgroundColor: 0x1099bb,
+        resizeTo: window,
+        autoDensity: true,
+        resolution: window.devicePixelRatio || 1,
+        backgroundColor: 0x0f172a,
     });
-    document.getElementById('app')!.appendChild(app.canvas);
+    const appContainer = document.getElementById('app')!;
+    appContainer.appendChild(app.canvas);
+
+    const gameContainer = new PIXI.Container();
+    app.stage.addChild(gameContainer);
+
+    function handleResize() {
+        const screenWidth = app.screen.width;
+        const screenHeight = app.screen.height;
+        const scale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
+        gameContainer.scale.set(scale);
+        gameContainer.x = (screenWidth - WIDTH * scale) / 2;
+        gameContainer.y = (screenHeight - HEIGHT * scale) / 2;
+    }
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    // Fullscreen toggle logic
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+    }
 
     const grid = new Grid();
     const player = new Player(0, 0);
@@ -22,43 +55,57 @@ async function init() {
         new Enemy(WIDTH / 3, HEIGHT / 3, -2, 4),
     ];
 
+    const backgroundGraphics = new PIXI.Graphics();
+    backgroundGraphics.beginFill(0x1e293b);
+    backgroundGraphics.drawRect(0, 0, WIDTH, HEIGHT);
+    backgroundGraphics.endFill();
+    gameContainer.addChild(backgroundGraphics);
+
     const gridGraphics = new PIXI.Graphics();
-    app.stage.addChild(gridGraphics);
+    gameContainer.addChild(gridGraphics);
 
     const trailGraphics = new PIXI.Graphics();
     trailGraphics.filters = [new PIXI.BlurFilter(2)];
-    app.stage.addChild(trailGraphics);
+    gameContainer.addChild(trailGraphics);
 
     const playerGraphics = new PIXI.Graphics();
-    app.stage.addChild(playerGraphics);
+    gameContainer.addChild(playerGraphics);
 
     const enemyGraphics = new PIXI.Graphics();
-    app.stage.addChild(enemyGraphics);
+    gameContainer.addChild(enemyGraphics);
 
     const particleContainer = new PIXI.Container();
-    app.stage.addChild(particleContainer);
+    gameContainer.addChild(particleContainer);
     const particles = new ParticleSystem(particleContainer);
 
-    const uiText = new PIXI.Text({
-        text: 'Filled: 0%',
-        style: {
-            fontFamily: 'Arial',
-            fontSize: 24,
-            fill: 0xffffff,
+    const fillPercentageEl = document.getElementById('fill-percentage');
+    function updateHUD() {
+        const fillPct = grid.getFillPercentage().toFixed(1);
+        if (fillPercentageEl) {
+            fillPercentageEl.textContent = `${fillPct}%`;
         }
-    });
-    uiText.x = 10;
-    uiText.y = 10;
-    app.stage.addChild(uiText);
-    uiText.text = `Filled: ${grid.getFillPercentage().toFixed(1)}%`;
+    }
+    updateHUD();
 
     // Controls
     window.addEventListener('keydown', (e) => {
-        switch (e.key) {
-            case 'ArrowUp': player.setDirection(-1, 0); break;
-            case 'ArrowDown': player.setDirection(1, 0); break;
-            case 'ArrowLeft': player.setDirection(0, -1); break;
-            case 'ArrowRight': player.setDirection(0, 1); break;
+        switch (e.key.toLowerCase()) {
+            case 'arrowup':
+            case 'w':
+                player.setDirection(-1, 0);
+                break;
+            case 'arrowdown':
+            case 's':
+                player.setDirection(1, 0);
+                break;
+            case 'arrowleft':
+            case 'a':
+                player.setDirection(0, -1);
+                break;
+            case 'arrowright':
+            case 'd':
+                player.setDirection(0, 1);
+                break;
         }
     });
 
@@ -69,11 +116,11 @@ async function init() {
             for (let c = 0; c < COLS; c++) {
                 const cell = grid.getCell(r, c);
                 if (cell === CellType.FILLED) {
-                    gridGraphics.beginFill(0x333333);
+                    gridGraphics.beginFill(0x38bdf8);
                     gridGraphics.drawRect(c * GRID_SIZE, r * GRID_SIZE, GRID_SIZE, GRID_SIZE);
                     gridGraphics.endFill();
                 } else if (cell === CellType.TRAIL) {
-                    trailGraphics.beginFill(0x00ff00);
+                    trailGraphics.beginFill(0x4ade80);
                     trailGraphics.drawRect(c * GRID_SIZE, r * GRID_SIZE, GRID_SIZE, GRID_SIZE);
                     trailGraphics.endFill();
                 }
@@ -101,7 +148,7 @@ async function init() {
                 for (const [r, c] of region) {
                     grid.setCell(r, c, CellType.FILLED);
                 }
-                particles.emit(region[0][1] * GRID_SIZE, region[0][0] * GRID_SIZE, 0xffff00, 50);
+                particles.emit(region[0][1] * GRID_SIZE, region[0][0] * GRID_SIZE, 0xfacc15, 50);
             }
         }
 
@@ -114,7 +161,7 @@ async function init() {
             }
         }
         
-        uiText.text = `Filled: ${grid.getFillPercentage().toFixed(1)}%`;
+        updateHUD();
     }
 
     app.ticker.add((ticker) => {
@@ -136,7 +183,7 @@ async function init() {
                 player.c = 0;
                 player.onTrail = false;
                 player.direction = { dr: 0, dc: 0 };
-                particles.emit(player.x, player.y, 0xff0000, 30);
+                particles.emit(player.x, player.y, 0xf87171, 30);
             }
         }
 
@@ -146,13 +193,13 @@ async function init() {
         renderGrid();
         
         playerGraphics.clear();
-        playerGraphics.beginFill(0xffffff);
+        playerGraphics.beginFill(0xf8fafc);
         playerGraphics.drawCircle(player.x, player.y, GRID_SIZE / 2);
         playerGraphics.endFill();
 
         enemyGraphics.clear();
         for (const enemy of enemies) {
-            enemyGraphics.beginFill(0xff0000);
+            enemyGraphics.beginFill(0xf87171);
             enemyGraphics.drawCircle(enemy.x, enemy.y, enemy.radius);
             enemyGraphics.endFill();
         }
