@@ -47,6 +47,11 @@
         justify-content: space-between;
         padding: 20px;
         z-index: 10;
+        transition: opacity 0.3s ease;
+      }
+      .ui-overlay.hidden {
+        opacity: 0;
+        pointer-events: none !important;
       }
       .ui-top-bar {
         display: flex;
@@ -78,6 +83,11 @@
         font-weight: 700;
         color: #38bdf8;
       }
+      .hud-actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
       .btn {
         pointer-events: auto;
         background: rgba(15, 23, 42, 0.75);
@@ -104,6 +114,15 @@
       .btn:active {
         transform: translateY(0);
       }
+      .btn-primary {
+        background: linear-gradient(135deg, #0284c7, #0369a1);
+        border-color: rgba(56, 189, 248, 0.4);
+        box-shadow: 0 4px 20px rgba(2, 132, 199, 0.4);
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #38bdf8, #0284c7);
+        box-shadow: 0 6px 24px rgba(56, 189, 248, 0.6);
+      }
       .ui-bottom-bar {
         display: flex;
         justify-content: center;
@@ -126,22 +145,129 @@
         font-weight: bold;
         color: #f1f5f9;
       }
+
+      /* Main Menu Overlay */
+      .menu-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 20;
+        background: rgba(13, 15, 23, 0.65);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        transition: opacity 0.3s ease;
+      }
+      .menu-overlay.hidden {
+        opacity: 0;
+        pointer-events: none !important;
+      }
+      .menu-card {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 24px;
+        padding: 40px;
+        width: 90%;
+        max-width: 440px;
+        text-align: center;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      }
+      .menu-title {
+        font-size: 42px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        background: linear-gradient(135deg, #38bdf8, #818cf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0 0 8px 0;
+        text-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+      }
+      .menu-subtitle {
+        font-size: 14px;
+        color: #94a3b8;
+        margin-bottom: 28px;
+        font-weight: 500;
+      }
+      .instructions-box {
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        text-align: left;
+        margin-bottom: 28px;
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.6;
+      }
+      .instructions-box ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+      }
+      .instructions-box li {
+        margin-bottom: 6px;
+      }
+      .menu-btn-large {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 24px;
+        font-size: 16px;
+        letter-spacing: 0.5px;
+        border-radius: 14px;
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div class="ui-overlay">
+
+    <!-- Main Menu Overlay -->
+    <div id="main-menu" class="menu-overlay">
+      <div class="menu-card">
+        <h1 class="menu-title">FILL IT!</h1>
+        <p class="menu-subtitle">Claim territory and avoid hazards</p>
+
+        <div class="instructions-box">
+          <strong>How to Play:</strong>
+          <ul>
+            <li>Move out into empty space to draw a trail</li>
+            <li>Connect back to filled territory to claim enclosed space</li>
+            <li>Dodge bouncing enemies — don't let them hit your trail!</li>
+          </ul>
+        </div>
+
+        <button id="start-btn" class="btn btn-primary menu-btn-large">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <span>Start Game</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- HUD Game Overlay -->
+    <div id="hud-overlay" class="ui-overlay hidden">
       <div class="ui-top-bar">
         <div class="hud-card">
           <div class="hud-title">Coverage</div>
           <div class="hud-value" id="fill-percentage">0.0%</div>
         </div>
-        <button id="fullscreen-btn" class="btn" aria-label="Toggle Fullscreen">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-          </svg>
-          <span>Fullscreen</span>
-        </button>
+        <div class="hud-actions">
+          <button id="menu-btn" class="btn" aria-label="Main Menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+            <span>Menu</span>
+          </button>
+          <button id="fullscreen-btn" class="btn" aria-label="Toggle Fullscreen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            <span>Fullscreen</span>
+          </button>
+        </div>
       </div>
       <div class="ui-bottom-bar">
         <div class="controls-hint">

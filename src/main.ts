@@ -6,6 +6,11 @@ import { Enemy } from './enemy';
 import { findEmptyRegions } from './utils';
 import { ParticleSystem } from './particles';
 
+enum GameState {
+    MENU,
+    PLAYING,
+}
+
 async function init() {
     const app = new PIXI.Application();
     await app.init({
@@ -32,8 +37,15 @@ async function init() {
     handleResize();
     window.addEventListener('resize', handleResize);
 
-    // Fullscreen toggle logic
+    // DOM Elements
+    const mainMenuEl = document.getElementById('main-menu');
+    const hudOverlayEl = document.getElementById('hud-overlay');
+    const startBtnEl = document.getElementById('start-btn');
+    const menuBtnEl = document.getElementById('menu-btn');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const fillPercentageEl = document.getElementById('fill-percentage');
+
+    // Fullscreen toggle logic
     if (fullscreenBtn) {
         fullscreenBtn.addEventListener('click', () => {
             if (!document.fullscreenElement) {
@@ -48,12 +60,41 @@ async function init() {
         });
     }
 
-    const grid = new Grid();
-    const player = new Player(0, 0);
-    const enemies: Enemy[] = [
-        new Enemy(WIDTH / 2, HEIGHT / 2, 3, 2),
-        new Enemy(WIDTH / 3, HEIGHT / 3, -2, 4),
-    ];
+    let currentState = GameState.MENU;
+    let grid = new Grid();
+    let player = new Player(0, 0);
+    let enemies: Enemy[] = [];
+
+    function resetGame() {
+        grid = new Grid();
+        player = new Player(0, 0);
+        enemies = [
+            new Enemy(WIDTH / 2, HEIGHT / 2, 3, 2),
+            new Enemy(WIDTH / 3, HEIGHT / 3, -2, 4),
+        ];
+        updateHUD();
+    }
+
+    function startGame() {
+        resetGame();
+        currentState = GameState.PLAYING;
+        if (mainMenuEl) mainMenuEl.classList.add('hidden');
+        if (hudOverlayEl) hudOverlayEl.classList.remove('hidden');
+    }
+
+    function showMenu() {
+        currentState = GameState.MENU;
+        if (mainMenuEl) mainMenuEl.classList.remove('hidden');
+        if (hudOverlayEl) hudOverlayEl.classList.add('hidden');
+    }
+
+    if (startBtnEl) {
+        startBtnEl.addEventListener('click', startGame);
+    }
+
+    if (menuBtnEl) {
+        menuBtnEl.addEventListener('click', showMenu);
+    }
 
     const backgroundGraphics = new PIXI.Graphics();
     backgroundGraphics.beginFill(0x1e293b);
@@ -78,17 +119,17 @@ async function init() {
     gameContainer.addChild(particleContainer);
     const particles = new ParticleSystem(particleContainer);
 
-    const fillPercentageEl = document.getElementById('fill-percentage');
     function updateHUD() {
         const fillPct = grid.getFillPercentage().toFixed(1);
         if (fillPercentageEl) {
             fillPercentageEl.textContent = `${fillPct}%`;
         }
     }
-    updateHUD();
 
     // Controls
     window.addEventListener('keydown', (e) => {
+        if (currentState !== GameState.PLAYING) return;
+
         switch (e.key.toLowerCase()) {
             case 'arrowup':
             case 'w':
@@ -164,26 +205,30 @@ async function init() {
         updateHUD();
     }
 
+    resetGame();
+
     app.ticker.add((ticker) => {
         const delta = ticker.deltaTime;
 
-        const wasOnTrail = player.onTrail;
-        player.update(grid);
-        
-        if (wasOnTrail && !player.onTrail) {
-            // Player just stepped off trail onto filled area
-            checkCompletion();
-        }
+        if (currentState === GameState.PLAYING) {
+            const wasOnTrail = player.onTrail;
+            player.update(grid);
 
-        for (const enemy of enemies) {
-            if (enemy.update(grid)) {
-                // Hit trail! Reset player and clear trail
-                grid.clearTrail();
-                player.r = 0;
-                player.c = 0;
-                player.onTrail = false;
-                player.direction = { dr: 0, dc: 0 };
-                particles.emit(player.x, player.y, 0xf87171, 30);
+            if (wasOnTrail && !player.onTrail) {
+                // Player just stepped off trail onto filled area
+                checkCompletion();
+            }
+
+            for (const enemy of enemies) {
+                if (enemy.update(grid)) {
+                    // Hit trail! Reset player and clear trail
+                    grid.clearTrail();
+                    player.r = 0;
+                    player.c = 0;
+                    player.onTrail = false;
+                    player.direction = { dr: 0, dc: 0 };
+                    particles.emit(player.x, player.y, 0xf87171, 30);
+                }
             }
         }
 
@@ -193,9 +238,11 @@ async function init() {
         renderGrid();
         
         playerGraphics.clear();
-        playerGraphics.beginFill(0xf8fafc);
-        playerGraphics.drawCircle(player.x, player.y, GRID_SIZE / 2);
-        playerGraphics.endFill();
+        if (currentState === GameState.PLAYING) {
+            playerGraphics.beginFill(0xf8fafc);
+            playerGraphics.drawCircle(player.x, player.y, GRID_SIZE / 2);
+            playerGraphics.endFill();
+        }
 
         enemyGraphics.clear();
         for (const enemy of enemies) {
