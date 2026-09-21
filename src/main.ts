@@ -9,7 +9,10 @@ import { ParticleSystem } from './particles';
 enum GameState {
     MENU,
     PLAYING,
+    LEVEL_COMPLETE,
 }
+
+const TARGET_FILL_PERCENTAGE = 75.0;
 
 async function init() {
     const app = new PIXI.Application();
@@ -40,10 +43,16 @@ async function init() {
     // DOM Elements
     const mainMenuEl = document.getElementById('main-menu');
     const hudOverlayEl = document.getElementById('hud-overlay');
+    const levelCompleteModalEl = document.getElementById('level-complete-modal');
+    const levelCompleteDescEl = document.getElementById('level-complete-desc');
+
     const startBtnEl = document.getElementById('start-btn');
     const menuBtnEl = document.getElementById('menu-btn');
+    const nextLevelBtnEl = document.getElementById('next-level-btn');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
+
     const fillPercentageEl = document.getElementById('fill-percentage');
+    const levelDisplayEl = document.getElementById('level-display');
 
     // Fullscreen toggle logic
     if (fullscreenBtn) {
@@ -61,31 +70,65 @@ async function init() {
     }
 
     let currentState = GameState.MENU;
+    let currentLevel = 1;
     let grid = new Grid();
     let player = new Player(0, 0);
     let enemies: Enemy[] = [];
 
-    function resetGame() {
+    function createEnemiesForLevel(levelNum: number): Enemy[] {
+        // Fair enemy scaling: start with 2 enemies, cap at 5 enemies max to keep levels beatable
+        const enemyCount = Math.min(2 + Math.floor((levelNum - 1) / 2), 5);
+        // Moderate speed scaling per level
+        const baseSpeed = 2.0 + (levelNum - 1) * 0.3;
+
+        const enemyList: Enemy[] = [];
+        const positions = [
+            { x: WIDTH / 2, y: HEIGHT / 2, vx: baseSpeed, vy: baseSpeed * 0.7 },
+            { x: WIDTH / 3, y: HEIGHT / 3, vx: -baseSpeed * 0.8, vy: baseSpeed },
+            { x: (WIDTH * 2) / 3, y: (HEIGHT * 2) / 3, vx: baseSpeed * 0.9, vy: -baseSpeed * 0.8 },
+            { x: WIDTH / 4, y: (HEIGHT * 3) / 4, vx: baseSpeed, vy: -baseSpeed * 0.9 },
+            { x: (WIDTH * 3) / 4, y: HEIGHT / 4, vx: -baseSpeed * 0.9, vy: baseSpeed * 0.7 },
+        ];
+
+        for (let i = 0; i < enemyCount; i++) {
+            const pos = positions[i % positions.length];
+            enemyList.push(new Enemy(pos.x, pos.y, pos.vx, pos.vy));
+        }
+
+        return enemyList;
+    }
+
+    function loadLevel(levelNum: number) {
+        currentLevel = levelNum;
         grid = new Grid();
         player = new Player(0, 0);
-        enemies = [
-            new Enemy(WIDTH / 2, HEIGHT / 2, 3, 2),
-            new Enemy(WIDTH / 3, HEIGHT / 3, -2, 4),
-        ];
+        enemies = createEnemiesForLevel(levelNum);
+
+        if (levelDisplayEl) {
+            levelDisplayEl.textContent = `${currentLevel}`;
+        }
         updateHUD();
     }
 
     function startGame() {
-        resetGame();
+        loadLevel(1);
         currentState = GameState.PLAYING;
         if (mainMenuEl) mainMenuEl.classList.add('hidden');
+        if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
         if (hudOverlayEl) hudOverlayEl.classList.remove('hidden');
+    }
+
+    function advanceToNextLevel() {
+        loadLevel(currentLevel + 1);
+        currentState = GameState.PLAYING;
+        if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
     }
 
     function showMenu() {
         currentState = GameState.MENU;
         if (mainMenuEl) mainMenuEl.classList.remove('hidden');
         if (hudOverlayEl) hudOverlayEl.classList.add('hidden');
+        if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
     }
 
     if (startBtnEl) {
@@ -94,6 +137,10 @@ async function init() {
 
     if (menuBtnEl) {
         menuBtnEl.addEventListener('click', showMenu);
+    }
+
+    if (nextLevelBtnEl) {
+        nextLevelBtnEl.addEventListener('click', advanceToNextLevel);
     }
 
     const backgroundGraphics = new PIXI.Graphics();
@@ -203,9 +250,20 @@ async function init() {
         }
         
         updateHUD();
+
+        const currentPct = grid.getFillPercentage();
+        if (currentPct >= TARGET_FILL_PERCENTAGE) {
+            currentState = GameState.LEVEL_COMPLETE;
+            if (levelCompleteDescEl) {
+                levelCompleteDescEl.textContent = `You claimed ${currentPct.toFixed(1)}% coverage on Level ${currentLevel}!`;
+            }
+            if (levelCompleteModalEl) {
+                levelCompleteModalEl.classList.remove('hidden');
+            }
+        }
     }
 
-    resetGame();
+    loadLevel(1);
 
     app.ticker.add((ticker) => {
         const delta = ticker.deltaTime;
