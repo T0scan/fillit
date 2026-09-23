@@ -112,12 +112,127 @@ async function init() {
     let player = new Player(0, 0);
     let enemies: Enemy[] = [];
 
-    function createEnemiesForLevel(levelNum: number): Enemy[] {
-        // Levels 1-50 Enemy Scaling:
-        // Enemy count scales smoothly from 1 at Level 1 up to 8 at Level 50
-        const enemyCount = Math.min(1 + Math.floor((levelNum - 1) / 7), 8);
+    const backgroundGraphics = new PIXI.Graphics();
+    gameContainer.addChild(backgroundGraphics);
 
-        // Base speed scales smoothly from 1.8 at Level 1 up to 4.5 at Level 50
+    const backgroundPatternGraphics = new PIXI.Graphics();
+    gameContainer.addChild(backgroundPatternGraphics);
+
+    const gridGraphics = new PIXI.Graphics();
+    gameContainer.addChild(gridGraphics);
+
+    const trailGraphics = new PIXI.Graphics();
+    trailGraphics.filters = [new PIXI.BlurFilter(2)];
+    gameContainer.addChild(trailGraphics);
+
+    const playerGraphics = new PIXI.Graphics();
+    gameContainer.addChild(playerGraphics);
+
+    const enemyGraphics = new PIXI.Graphics();
+    gameContainer.addChild(enemyGraphics);
+
+    const particleContainer = new PIXI.Container();
+    gameContainer.addChild(particleContainer);
+    const particles = new ParticleSystem(particleContainer);
+
+    // Color conversion helper for background theme generation
+    function hslToHex(h: number, s: number, l: number): number {
+        l /= 100;
+        const a = (s * Math.min(l, 1 - l)) / 100;
+        const f = (n: number) => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color);
+        };
+        return (f(0) << 16) + (f(8) << 8) + f(4);
+    }
+
+    function renderUniqueLevelBackground(levelNum: number) {
+        backgroundGraphics.clear();
+        backgroundPatternGraphics.clear();
+
+        // 1. Base dark theme color generated deterministically by level hue
+        const hue = (levelNum * 137.508) % 360; // Golden angle distribution
+        const bgColor = hslToHex(hue, 35, 12);
+        const patternColor = hslToHex((hue + 30) % 360, 50, 25);
+        const accentColor = hslToHex((hue + 180) % 360, 60, 35);
+
+        backgroundGraphics.beginFill(bgColor);
+        backgroundGraphics.drawRect(0, 0, WIDTH, HEIGHT);
+        backgroundGraphics.endFill();
+
+        // 2. Procedural background pattern unique to each level
+        const patternStyle = levelNum % 5;
+
+        switch (patternStyle) {
+            case 0: {
+                // Subtle Grid Lines pattern
+                backgroundPatternGraphics.lineStyle(1, patternColor, 0.15);
+                const step = 20 + (levelNum % 4) * 10;
+                for (let x = 0; x < WIDTH; x += step) {
+                    backgroundPatternGraphics.moveTo(x, 0);
+                    backgroundPatternGraphics.lineTo(x, HEIGHT);
+                }
+                for (let y = 0; y < HEIGHT; y += step) {
+                    backgroundPatternGraphics.moveTo(0, y);
+                    backgroundPatternGraphics.lineTo(WIDTH, y);
+                }
+                break;
+            }
+            case 1: {
+                // Starfield / Cosmic Dots pattern
+                backgroundPatternGraphics.beginFill(accentColor, 0.25);
+                const starCount = 30 + (levelNum % 20) * 2;
+                for (let i = 0; i < starCount; i++) {
+                    const sx = (Math.sin(i * 12.3 + levelNum * 7) * 0.5 + 0.5) * WIDTH;
+                    const sy = (Math.cos(i * 45.6 + levelNum * 3) * 0.5 + 0.5) * HEIGHT;
+                    const sr = 1 + (i % 3);
+                    backgroundPatternGraphics.drawCircle(sx, sy, sr);
+                }
+                backgroundPatternGraphics.endFill();
+                break;
+            }
+            case 2: {
+                // Concentric Tech Rings pattern
+                backgroundPatternGraphics.lineStyle(1.5, patternColor, 0.15);
+                const cx = WIDTH / 2;
+                const cy = HEIGHT / 2;
+                const ringCount = 4 + (levelNum % 5);
+                for (let i = 1; i <= ringCount; i++) {
+                    backgroundPatternGraphics.drawCircle(cx, cy, i * 60);
+                }
+                break;
+            }
+            case 3: {
+                // Diagonal Stripe Lattice pattern
+                backgroundPatternGraphics.lineStyle(1, accentColor, 0.12);
+                const spacing = 30 + (levelNum % 3) * 10;
+                for (let i = -HEIGHT; i < WIDTH + HEIGHT; i += spacing) {
+                    backgroundPatternGraphics.moveTo(i, 0);
+                    backgroundPatternGraphics.lineTo(i + HEIGHT, HEIGHT);
+                }
+                break;
+            }
+            case 4: {
+                // Ambient Hexagon Nodes pattern
+                backgroundPatternGraphics.beginFill(patternColor, 0.18);
+                const nodeCols = 8;
+                const nodeRows = 6;
+                for (let r = 0; r < nodeRows; r++) {
+                    for (let c = 0; c < nodeCols; c++) {
+                        const nx = (c + 0.5) * (WIDTH / nodeCols);
+                        const ny = (r + 0.5) * (HEIGHT / nodeRows);
+                        backgroundPatternGraphics.drawCircle(nx, ny, 3 + (levelNum % 4));
+                    }
+                }
+                backgroundPatternGraphics.endFill();
+                break;
+            }
+        }
+    }
+
+    function createEnemiesForLevel(levelNum: number): Enemy[] {
+        const enemyCount = Math.min(1 + Math.floor((levelNum - 1) / 7), 8);
         const baseSpeed = 1.8 + ((levelNum - 1) / 49) * 2.7;
 
         const enemyList: Enemy[] = [];
@@ -134,7 +249,6 @@ async function init() {
 
         for (let i = 0; i < enemyCount; i++) {
             const pos = basePositions[i % basePositions.length];
-            // Varied trajectory per level and enemy index
             const angle = (Math.PI / 4) * (pos.angleMult + 1) + (levelNum * 0.1);
             const vx = Math.cos(angle) * baseSpeed;
             const vy = Math.sin(angle) * baseSpeed;
@@ -149,6 +263,7 @@ async function init() {
         grid = new Grid();
         player = new Player(0, 0);
         enemies = createEnemiesForLevel(currentLevel);
+        renderUniqueLevelBackground(currentLevel);
 
         if (levelDisplayEl) {
             levelDisplayEl.textContent = `${currentLevel} / ${MAX_LEVEL}`;
@@ -169,7 +284,6 @@ async function init() {
 
     function advanceToNextLevel() {
         if (currentLevel >= MAX_LEVEL) {
-            // Completed all 50 levels! Return to main menu
             showMenu();
             return;
         }
@@ -187,6 +301,7 @@ async function init() {
 
     function showMenu() {
         currentState = GameState.MENU;
+        renderUniqueLevelBackground(1);
         if (mainMenuEl) mainMenuEl.classList.remove('hidden');
         if (hudOverlayEl) hudOverlayEl.classList.add('hidden');
         if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
@@ -198,29 +313,6 @@ async function init() {
     if (nextLevelBtnEl) nextLevelBtnEl.addEventListener('click', advanceToNextLevel);
     if (retryBtnEl) retryBtnEl.addEventListener('click', retryLevel);
     if (gameOverMenuBtnEl) gameOverMenuBtnEl.addEventListener('click', showMenu);
-
-    const backgroundGraphics = new PIXI.Graphics();
-    backgroundGraphics.beginFill(0x1e293b);
-    backgroundGraphics.drawRect(0, 0, WIDTH, HEIGHT);
-    backgroundGraphics.endFill();
-    gameContainer.addChild(backgroundGraphics);
-
-    const gridGraphics = new PIXI.Graphics();
-    gameContainer.addChild(gridGraphics);
-
-    const trailGraphics = new PIXI.Graphics();
-    trailGraphics.filters = [new PIXI.BlurFilter(2)];
-    gameContainer.addChild(trailGraphics);
-
-    const playerGraphics = new PIXI.Graphics();
-    gameContainer.addChild(playerGraphics);
-
-    const enemyGraphics = new PIXI.Graphics();
-    gameContainer.addChild(enemyGraphics);
-
-    const particleContainer = new PIXI.Container();
-    gameContainer.addChild(particleContainer);
-    const particles = new ParticleSystem(particleContainer);
 
     function updateHUD() {
         const fillPct = grid.getFillPercentage();
