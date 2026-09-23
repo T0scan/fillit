@@ -15,6 +15,7 @@ enum GameState {
 
 const TARGET_FILL_PERCENTAGE = 70.0;
 const INITIAL_LIVES = 3;
+const MAX_LEVEL = 50;
 
 async function init() {
     const app = new PIXI.Application();
@@ -46,7 +47,6 @@ async function init() {
     function handleResize() {
         const screenWidth = app.screen.width;
         const screenHeight = app.screen.height;
-        // Stretch gameContainer to fill the screen viewport edge-to-edge
         const scaleX = screenWidth / WIDTH;
         const scaleY = screenHeight / HEIGHT;
         gameContainer.scale.set(scaleX, scaleY);
@@ -61,10 +61,12 @@ async function init() {
     const mainMenuEl = document.getElementById('main-menu');
     const hudOverlayEl = document.getElementById('hud-overlay');
     const levelCompleteModalEl = document.getElementById('level-complete-modal');
+    const levelCompleteTitleEl = document.getElementById('level-complete-title');
     const levelCompleteDescEl = document.getElementById('level-complete-desc');
     const gameOverModalEl = document.getElementById('game-over-modal');
     const gameOverDescEl = document.getElementById('game-over-desc');
 
+    const startLevelSelectEl = document.getElementById('start-level-select') as HTMLSelectElement | null;
     const startBtnEl = document.getElementById('start-btn');
     const menuBtnEl = document.getElementById('menu-btn');
     const nextLevelBtnEl = document.getElementById('next-level-btn');
@@ -76,6 +78,17 @@ async function init() {
     const progressBarEl = document.getElementById('progress-bar');
     const levelDisplayEl = document.getElementById('level-display');
     const livesDisplayEl = document.getElementById('lives-display');
+
+    // Populate Level Select Options (1 through 50)
+    if (startLevelSelectEl) {
+        startLevelSelectEl.innerHTML = '';
+        for (let i = 1; i <= MAX_LEVEL; i++) {
+            const opt = document.createElement('option');
+            opt.value = `${i}`;
+            opt.textContent = `Level ${i}`;
+            startLevelSelectEl.appendChild(opt);
+        }
+    }
 
     // Fullscreen toggle logic
     if (fullscreenBtn) {
@@ -100,41 +113,53 @@ async function init() {
     let enemies: Enemy[] = [];
 
     function createEnemiesForLevel(levelNum: number): Enemy[] {
-        const enemyCount = Math.min(2 + Math.floor((levelNum - 1) / 2), 5);
-        const baseSpeed = 2.0 + (levelNum - 1) * 0.3;
+        // Levels 1-50 Enemy Scaling:
+        // Enemy count scales smoothly from 1 at Level 1 up to 8 at Level 50
+        const enemyCount = Math.min(1 + Math.floor((levelNum - 1) / 7), 8);
+
+        // Base speed scales smoothly from 1.8 at Level 1 up to 4.5 at Level 50
+        const baseSpeed = 1.8 + ((levelNum - 1) / 49) * 2.7;
 
         const enemyList: Enemy[] = [];
-        const positions = [
-            { x: WIDTH / 2, y: HEIGHT / 2, vx: baseSpeed, vy: baseSpeed * 0.7 },
-            { x: WIDTH / 3, y: HEIGHT / 3, vx: -baseSpeed * 0.8, vy: baseSpeed },
-            { x: (WIDTH * 2) / 3, y: (HEIGHT * 2) / 3, vx: baseSpeed * 0.9, vy: -baseSpeed * 0.8 },
-            { x: WIDTH / 4, y: (HEIGHT * 3) / 4, vx: baseSpeed, vy: -baseSpeed * 0.9 },
-            { x: (WIDTH * 3) / 4, y: HEIGHT / 4, vx: -baseSpeed * 0.9, vy: baseSpeed * 0.7 },
+        const basePositions = [
+            { x: WIDTH / 2, y: HEIGHT / 2, angleMult: 0 },
+            { x: WIDTH / 3, y: HEIGHT / 3, angleMult: 1 },
+            { x: (WIDTH * 2) / 3, y: (HEIGHT * 2) / 3, angleMult: 2 },
+            { x: WIDTH / 4, y: (HEIGHT * 3) / 4, angleMult: 3 },
+            { x: (WIDTH * 3) / 4, y: HEIGHT / 4, angleMult: 4 },
+            { x: WIDTH / 2, y: HEIGHT / 4, angleMult: 5 },
+            { x: WIDTH / 4, y: HEIGHT / 2, angleMult: 6 },
+            { x: (WIDTH * 3) / 4, y: (HEIGHT * 3) / 4, angleMult: 7 },
         ];
 
         for (let i = 0; i < enemyCount; i++) {
-            const pos = positions[i % positions.length];
-            enemyList.push(new Enemy(pos.x, pos.y, pos.vx, pos.vy));
+            const pos = basePositions[i % basePositions.length];
+            // Varied trajectory per level and enemy index
+            const angle = (Math.PI / 4) * (pos.angleMult + 1) + (levelNum * 0.1);
+            const vx = Math.cos(angle) * baseSpeed;
+            const vy = Math.sin(angle) * baseSpeed;
+            enemyList.push(new Enemy(pos.x, pos.y, vx, vy));
         }
 
         return enemyList;
     }
 
     function loadLevel(levelNum: number) {
-        currentLevel = levelNum;
+        currentLevel = Math.min(Math.max(1, levelNum), MAX_LEVEL);
         grid = new Grid();
         player = new Player(0, 0);
-        enemies = createEnemiesForLevel(levelNum);
+        enemies = createEnemiesForLevel(currentLevel);
 
         if (levelDisplayEl) {
-            levelDisplayEl.textContent = `${currentLevel}`;
+            levelDisplayEl.textContent = `${currentLevel} / ${MAX_LEVEL}`;
         }
         updateHUD();
     }
 
     function startGame() {
         lives = INITIAL_LIVES;
-        loadLevel(1);
+        const selectedStartLevel = startLevelSelectEl ? parseInt(startLevelSelectEl.value, 10) || 1 : 1;
+        loadLevel(selectedStartLevel);
         currentState = GameState.PLAYING;
         if (mainMenuEl) mainMenuEl.classList.add('hidden');
         if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
@@ -143,6 +168,11 @@ async function init() {
     }
 
     function advanceToNextLevel() {
+        if (currentLevel >= MAX_LEVEL) {
+            // Completed all 50 levels! Return to main menu
+            showMenu();
+            return;
+        }
         loadLevel(currentLevel + 1);
         currentState = GameState.PLAYING;
         if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
@@ -307,9 +337,24 @@ async function init() {
                 );
             }
 
-            if (levelCompleteDescEl) {
-                levelCompleteDescEl.textContent = `You claimed ${currentPct.toFixed(1)}% coverage on Level ${currentLevel}!`;
+            if (currentLevel >= MAX_LEVEL) {
+                if (levelCompleteTitleEl) levelCompleteTitleEl.textContent = 'GAME VICTORY!';
+                if (levelCompleteDescEl) levelCompleteDescEl.textContent = `CONGRATULATIONS! You completed all ${MAX_LEVEL} levels!`;
+                if (nextLevelBtnEl) {
+                    const span = nextLevelBtnEl.querySelector('span');
+                    if (span) span.textContent = 'Main Menu';
+                }
+            } else {
+                if (levelCompleteTitleEl) levelCompleteTitleEl.textContent = 'Level Cleared!';
+                if (levelCompleteDescEl) {
+                    levelCompleteDescEl.textContent = `You claimed ${currentPct.toFixed(1)}% coverage on Level ${currentLevel}!`;
+                }
+                if (nextLevelBtnEl) {
+                    const span = nextLevelBtnEl.querySelector('span');
+                    if (span) span.textContent = 'Next Level';
+                }
             }
+
             if (levelCompleteModalEl) {
                 levelCompleteModalEl.classList.remove('hidden');
             }

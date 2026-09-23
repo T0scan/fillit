@@ -235,9 +235,9 @@
         background: rgba(15, 23, 42, 0.88);
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 24px;
-        padding: 40px;
+        padding: 36px 40px;
         width: 90%;
-        max-width: 440px;
+        max-width: 460px;
         text-align: center;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(56, 189, 248, 0.15);
         animation: menuPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -255,7 +255,7 @@
         animation: gradientGlow 6s ease infinite;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
         text-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
       }
       @keyframes gradientGlow {
@@ -266,8 +266,34 @@
       .menu-subtitle {
         font-size: 14px;
         color: #94a3b8;
-        margin-bottom: 28px;
+        margin-bottom: 20px;
         font-weight: 500;
+      }
+      .level-select-group {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        background: rgba(30, 41, 59, 0.5);
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .level-select-label {
+        font-size: 13px;
+        color: #94a3b8;
+        font-weight: 600;
+      }
+      .level-select-input {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 8px;
+        color: #38bdf8;
+        padding: 4px 10px;
+        font-size: 15px;
+        font-weight: bold;
+        outline: none;
       }
       .instructions-box {
         background: rgba(30, 41, 59, 0.5);
@@ -275,7 +301,7 @@
         padding: 16px;
         border: 1px solid rgba(255, 255, 255, 0.05);
         text-align: left;
-        margin-bottom: 28px;
+        margin-bottom: 24px;
         font-size: 13px;
         color: #cbd5e1;
         line-height: 1.6;
@@ -348,7 +374,14 @@
     <div id="main-menu" class="menu-overlay">
       <div class="menu-card">
         <h1 class="menu-title">FILL IT!</h1>
-        <p class="menu-subtitle">Claim territory and avoid hazards</p>
+        <p class="menu-subtitle">50 Action-Packed Levels</p>
+
+        <div class="level-select-group">
+          <label for="start-level-select" class="level-select-label">Starting Level:</label>
+          <select id="start-level-select" class="level-select-input">
+            <!-- Populated via JS for Levels 1 to 50 -->
+          </select>
+        </div>
 
         <div class="instructions-box">
           <strong>How to Play:</strong>
@@ -356,7 +389,7 @@
             <li>Move out into empty space to draw a trail</li>
             <li>Connect back to filled territory to claim enclosed space</li>
             <li>Dodge bouncing enemies — don't let them hit your trail!</li>
-            <li>Reach <strong>70% coverage</strong> to beat the level!</li>
+            <li>Reach <strong>70% coverage</strong> to beat each level!</li>
           </ul>
         </div>
 
@@ -372,7 +405,7 @@
     <!-- Level Complete Overlay Modal -->
     <div id="level-complete-modal" class="menu-overlay hidden">
       <div class="modal-card">
-        <h2 class="modal-title">Level Cleared!</h2>
+        <h2 class="modal-title" id="level-complete-title">Level Cleared!</h2>
         <p class="modal-text" id="level-complete-desc">You claimed 70% coverage!</p>
         <button id="next-level-btn" class="btn btn-success menu-btn-large">
           <span>Next Level</span>
@@ -409,7 +442,7 @@
         <div class="hud-group">
           <div class="hud-card">
             <div class="hud-title">Level</div>
-            <div class="hud-value" id="level-display">1</div>
+            <div class="hud-value" id="level-display">1 / 50</div>
           </div>
           <div class="hud-card hud-progress-container">
             <div class="hud-title">Coverage</div>
