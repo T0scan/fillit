@@ -47,6 +47,11 @@
         justify-content: space-between;
         padding: 20px;
         z-index: 10;
+        transition: opacity 0.3s ease;
+      }
+      .ui-overlay.hidden {
+        opacity: 0;
+        pointer-events: none !important;
       }
       .ui-top-bar {
         display: flex;
@@ -54,29 +59,66 @@
         align-items: center;
         width: 100%;
       }
+      .hud-group {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
       .hud-card {
         background: rgba(15, 23, 42, 0.75);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 12px;
-        padding: 12px 20px;
+        padding: 10px 18px;
         color: #f8fafc;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         pointer-events: auto;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+      }
+      .hud-card:hover {
+        border-color: rgba(56, 189, 248, 0.4);
       }
       .hud-title {
-        font-size: 12px;
+        font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 1.5px;
         color: #94a3b8;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
         font-weight: 600;
       }
       .hud-value {
-        font-size: 24px;
+        font-size: 20px;
         font-weight: 700;
         color: #38bdf8;
+      }
+      .hud-value-highlight {
+        color: #4ade80;
+      }
+      .hud-progress-container {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 140px;
+      }
+      .progress-bar-bg {
+        width: 100%;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #38bdf8, #4ade80);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+      }
+      .hud-actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
       }
       .btn {
         pointer-events: auto;
@@ -93,16 +135,58 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        transition: all 0.2s ease;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        position: relative;
+        overflow: hidden;
+      }
+      .btn::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: 0.5s;
+      }
+      .btn:hover::after {
+        left: 100%;
       }
       .btn:hover {
         background: rgba(30, 41, 59, 0.9);
         border-color: rgba(56, 189, 248, 0.5);
-        transform: translateY(-2px);
+        transform: translateY(-2px) scale(1.02);
       }
       .btn:active {
-        transform: translateY(0);
+        transform: translateY(0) scale(0.98);
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #0284c7, #0369a1);
+        border-color: rgba(56, 189, 248, 0.4);
+        box-shadow: 0 4px 20px rgba(2, 132, 199, 0.4);
+      }
+      .btn-primary:hover {
+        background: linear-gradient(135deg, #38bdf8, #0284c7);
+        box-shadow: 0 6px 24px rgba(56, 189, 248, 0.6);
+      }
+      .btn-success {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        border-color: rgba(74, 222, 128, 0.4);
+        box-shadow: 0 4px 20px rgba(22, 163, 74, 0.4);
+      }
+      .btn-success:hover {
+        background: linear-gradient(135deg, #4ade80, #16a34a);
+        box-shadow: 0 6px 24px rgba(74, 222, 128, 0.6);
+      }
+      .btn-danger {
+        background: linear-gradient(135deg, #dc2626, #991b1b);
+        border-color: rgba(248, 113, 113, 0.4);
+        box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4);
+      }
+      .btn-danger:hover {
+        background: linear-gradient(135deg, #f87171, #dc2626);
+        box-shadow: 0 6px 24px rgba(248, 113, 113, 0.6);
       }
       .ui-bottom-bar {
         display: flex;
@@ -126,22 +210,238 @@
         font-weight: bold;
         color: #f1f5f9;
       }
+
+      /* Overlays and Animations */
+      .menu-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 20;
+        background: rgba(13, 15, 23, 0.75);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .menu-overlay.hidden {
+        opacity: 0;
+        pointer-events: none !important;
+      }
+      .menu-card {
+        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 24px;
+        padding: 40px;
+        width: 90%;
+        max-width: 440px;
+        text-align: center;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(56, 189, 248, 0.15);
+        animation: menuPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes menuPopIn {
+        0% { transform: scale(0.9) translateY(10px); opacity: 0; }
+        100% { transform: scale(1) translateY(0); opacity: 1; }
+      }
+      .menu-title {
+        font-size: 42px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        background: linear-gradient(135deg, #38bdf8, #818cf8, #f43f5e);
+        background-size: 200% 200%;
+        animation: gradientGlow 6s ease infinite;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0 0 8px 0;
+        text-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+      }
+      @keyframes gradientGlow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      .menu-subtitle {
+        font-size: 14px;
+        color: #94a3b8;
+        margin-bottom: 28px;
+        font-weight: 500;
+      }
+      .instructions-box {
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        text-align: left;
+        margin-bottom: 28px;
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.6;
+      }
+      .instructions-box ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+      }
+      .instructions-box li {
+        margin-bottom: 6px;
+      }
+      .menu-btn-large {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 24px;
+        font-size: 16px;
+        letter-spacing: 0.5px;
+        border-radius: 14px;
+      }
+
+      .modal-card {
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(74, 222, 128, 0.4);
+        border-radius: 24px;
+        padding: 36px;
+        width: 90%;
+        max-width: 420px;
+        text-align: center;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 50px rgba(74, 222, 128, 0.25);
+        animation: modalPulseIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .modal-card-danger {
+        border-color: rgba(248, 113, 113, 0.4);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 50px rgba(248, 113, 113, 0.25);
+      }
+      @keyframes modalPulseIn {
+        0% { transform: scale(0.85); opacity: 0; }
+        50% { transform: scale(1.03); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .modal-title {
+        font-size: 34px;
+        font-weight: 900;
+        background: linear-gradient(135deg, #4ade80, #2dd4bf);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0 0 12px 0;
+      }
+      .modal-title-danger {
+        background: linear-gradient(135deg, #f87171, #ef4444);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .modal-text {
+        font-size: 15px;
+        color: #cbd5e1;
+        margin-bottom: 24px;
+      }
+      .modal-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div class="ui-overlay">
-      <div class="ui-top-bar">
-        <div class="hud-card">
-          <div class="hud-title">Coverage</div>
-          <div class="hud-value" id="fill-percentage">0.0%</div>
+
+    <!-- Main Menu Overlay -->
+    <div id="main-menu" class="menu-overlay">
+      <div class="menu-card">
+        <h1 class="menu-title">FILL IT!</h1>
+        <p class="menu-subtitle">Claim territory and avoid hazards</p>
+
+        <div class="instructions-box">
+          <strong>How to Play:</strong>
+          <ul>
+            <li>Move out into empty space to draw a trail</li>
+            <li>Connect back to filled territory to claim enclosed space</li>
+            <li>Dodge bouncing enemies — don't let them hit your trail!</li>
+            <li>Reach <strong>70% coverage</strong> to beat the level!</li>
+          </ul>
         </div>
-        <button id="fullscreen-btn" class="btn" aria-label="Toggle Fullscreen">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+
+        <button id="start-btn" class="btn btn-primary menu-btn-large">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
           </svg>
-          <span>Fullscreen</span>
+          <span>Start Game</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Level Complete Overlay Modal -->
+    <div id="level-complete-modal" class="menu-overlay hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">Level Cleared!</h2>
+        <p class="modal-text" id="level-complete-desc">You claimed 70% coverage!</p>
+        <button id="next-level-btn" class="btn btn-success menu-btn-large">
+          <span>Next Level</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="menu-overlay hidden">
+      <div class="modal-card modal-card-danger">
+        <h2 class="modal-title modal-title-danger">Game Over</h2>
+        <p class="modal-text" id="game-over-desc">An enemy hit your trail!</p>
+        <div class="modal-actions">
+          <button id="retry-btn" class="btn btn-danger menu-btn-large">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            <span>Try Again</span>
+          </button>
+          <button id="game-over-menu-btn" class="btn menu-btn-large">
+            <span>Main Menu</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD Game Overlay -->
+    <div id="hud-overlay" class="ui-overlay hidden">
+      <div class="ui-top-bar">
+        <div class="hud-group">
+          <div class="hud-card">
+            <div class="hud-title">Level</div>
+            <div class="hud-value" id="level-display">1</div>
+          </div>
+          <div class="hud-card hud-progress-container">
+            <div class="hud-title">Coverage</div>
+            <div class="hud-value" id="fill-percentage">0.0%</div>
+            <div class="progress-bar-bg">
+              <div id="progress-bar" class="progress-bar-fill"></div>
+            </div>
+          </div>
+          <div class="hud-card">
+            <div class="hud-title">Target</div>
+            <div class="hud-value hud-value-highlight">70.0%</div>
+          </div>
+          <div class="hud-card">
+            <div class="hud-title">Lives</div>
+            <div class="hud-value" id="lives-display">❤️❤️❤️</div>
+          </div>
+        </div>
+
+        <div class="hud-actions">
+          <button id="menu-btn" class="btn" aria-label="Main Menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+            <span>Menu</span>
+          </button>
+          <button id="fullscreen-btn" class="btn" aria-label="Toggle Fullscreen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            <span>Fullscreen</span>
+          </button>
+        </div>
       </div>
       <div class="ui-bottom-bar">
         <div class="controls-hint">

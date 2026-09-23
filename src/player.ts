@@ -9,6 +9,10 @@ export class Player {
     nextDirection: { dr: number; dc: number } = { dr: 0, dc: 0 };
     onTrail: boolean = false;
 
+    // Movement speed control: move once every `moveInterval` ticks/frames
+    moveTimer: number = 0;
+    moveInterval: number = 5; // Controls step delay (higher = slower)
+
     constructor(r: number, c: number) {
         this.r = r;
         this.c = c;
@@ -20,6 +24,12 @@ export class Player {
         }
 
         if (this.direction.dr === 0 && this.direction.dc === 0) return;
+
+        this.moveTimer++;
+        if (this.moveTimer < this.moveInterval) {
+            return;
+        }
+        this.moveTimer = 0;
 
         const nextR = this.r + this.direction.dr;
         const nextC = this.c + this.direction.dc;
