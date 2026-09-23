@@ -10,9 +10,11 @@ enum GameState {
     MENU,
     PLAYING,
     LEVEL_COMPLETE,
+    GAME_OVER,
 }
 
-const TARGET_FILL_PERCENTAGE = 75.0;
+const TARGET_FILL_PERCENTAGE = 70.0;
+const INITIAL_LIVES = 3;
 
 async function init() {
     const app = new PIXI.Application();
@@ -44,10 +46,12 @@ async function init() {
     function handleResize() {
         const screenWidth = app.screen.width;
         const screenHeight = app.screen.height;
-        const scale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
-        gameContainer.scale.set(scale);
-        gameContainer.x = (screenWidth - WIDTH * scale) / 2;
-        gameContainer.y = (screenHeight - HEIGHT * scale) / 2;
+        // Stretch gameContainer to fill the screen viewport edge-to-edge
+        const scaleX = screenWidth / WIDTH;
+        const scaleY = screenHeight / HEIGHT;
+        gameContainer.scale.set(scaleX, scaleY);
+        gameContainer.x = 0;
+        gameContainer.y = 0;
     }
 
     handleResize();
@@ -58,14 +62,20 @@ async function init() {
     const hudOverlayEl = document.getElementById('hud-overlay');
     const levelCompleteModalEl = document.getElementById('level-complete-modal');
     const levelCompleteDescEl = document.getElementById('level-complete-desc');
+    const gameOverModalEl = document.getElementById('game-over-modal');
+    const gameOverDescEl = document.getElementById('game-over-desc');
 
     const startBtnEl = document.getElementById('start-btn');
     const menuBtnEl = document.getElementById('menu-btn');
     const nextLevelBtnEl = document.getElementById('next-level-btn');
+    const retryBtnEl = document.getElementById('retry-btn');
+    const gameOverMenuBtnEl = document.getElementById('game-over-menu-btn');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
 
     const fillPercentageEl = document.getElementById('fill-percentage');
+    const progressBarEl = document.getElementById('progress-bar');
     const levelDisplayEl = document.getElementById('level-display');
+    const livesDisplayEl = document.getElementById('lives-display');
 
     // Fullscreen toggle logic
     if (fullscreenBtn) {
@@ -84,6 +94,7 @@ async function init() {
 
     let currentState = GameState.MENU;
     let currentLevel = 1;
+    let lives = INITIAL_LIVES;
     let grid = new Grid();
     let player = new Player(0, 0);
     let enemies: Enemy[] = [];
@@ -122,10 +133,12 @@ async function init() {
     }
 
     function startGame() {
+        lives = INITIAL_LIVES;
         loadLevel(1);
         currentState = GameState.PLAYING;
         if (mainMenuEl) mainMenuEl.classList.add('hidden');
         if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
+        if (gameOverModalEl) gameOverModalEl.classList.add('hidden');
         if (hudOverlayEl) hudOverlayEl.classList.remove('hidden');
     }
 
@@ -135,24 +148,26 @@ async function init() {
         if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
     }
 
+    function retryLevel() {
+        lives = INITIAL_LIVES;
+        loadLevel(currentLevel);
+        currentState = GameState.PLAYING;
+        if (gameOverModalEl) gameOverModalEl.classList.add('hidden');
+    }
+
     function showMenu() {
         currentState = GameState.MENU;
         if (mainMenuEl) mainMenuEl.classList.remove('hidden');
         if (hudOverlayEl) hudOverlayEl.classList.add('hidden');
         if (levelCompleteModalEl) levelCompleteModalEl.classList.add('hidden');
+        if (gameOverModalEl) gameOverModalEl.classList.add('hidden');
     }
 
-    if (startBtnEl) {
-        startBtnEl.addEventListener('click', startGame);
-    }
-
-    if (menuBtnEl) {
-        menuBtnEl.addEventListener('click', showMenu);
-    }
-
-    if (nextLevelBtnEl) {
-        nextLevelBtnEl.addEventListener('click', advanceToNextLevel);
-    }
+    if (startBtnEl) startBtnEl.addEventListener('click', startGame);
+    if (menuBtnEl) menuBtnEl.addEventListener('click', showMenu);
+    if (nextLevelBtnEl) nextLevelBtnEl.addEventListener('click', advanceToNextLevel);
+    if (retryBtnEl) retryBtnEl.addEventListener('click', retryLevel);
+    if (gameOverMenuBtnEl) gameOverMenuBtnEl.addEventListener('click', showMenu);
 
     const backgroundGraphics = new PIXI.Graphics();
     backgroundGraphics.beginFill(0x1e293b);
@@ -178,9 +193,16 @@ async function init() {
     const particles = new ParticleSystem(particleContainer);
 
     function updateHUD() {
-        const fillPct = grid.getFillPercentage().toFixed(1);
+        const fillPct = grid.getFillPercentage();
         if (fillPercentageEl) {
-            fillPercentageEl.textContent = `${fillPct}%`;
+            fillPercentageEl.textContent = `${fillPct.toFixed(1)}%`;
+        }
+        if (progressBarEl) {
+            const progressRatio = Math.min(100, (fillPct / TARGET_FILL_PERCENTAGE) * 100);
+            progressBarEl.style.width = `${progressRatio.toFixed(1)}%`;
+        }
+        if (livesDisplayEl) {
+            livesDisplayEl.textContent = '❤️'.repeat(lives);
         }
     }
 
@@ -231,7 +253,6 @@ async function init() {
         const regions = findEmptyRegions(grid);
         let claimed = false;
         
-        // Find regions that don't contain any enemies
         for (const region of regions) {
             let hasEnemy = false;
             for (const enemy of enemies) {
@@ -248,7 +269,6 @@ async function init() {
                 for (const [r, c] of region) {
                     grid.setCell(r, c, CellType.FILLED);
                 }
-                // Emit celebratory particles on filled area
                 const sampleCenter = region[Math.floor(region.length / 2)];
                 if (sampleCenter) {
                     particles.emit(sampleCenter[1] * GRID_SIZE, sampleCenter[0] * GRID_SIZE, 0xfacc15, 60, 1.2);
@@ -256,7 +276,6 @@ async function init() {
             }
         }
 
-        // Convert all trail to filled
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
                 if (grid.getCell(r, c) === CellType.TRAIL) {
@@ -277,7 +296,6 @@ async function init() {
             triggerScreenShake(12, 16);
             triggerHitStop(10);
 
-            // Victory celebration particle burst
             for (let i = 0; i < 5; i++) {
                 particles.emit(
                     Math.random() * WIDTH,
@@ -298,27 +316,22 @@ async function init() {
         }
     }
 
-    loadLevel(1);
+    // Ensure we start cleanly on Main Menu
+    showMenu();
 
     app.ticker.add((ticker) => {
         const delta = ticker.deltaTime;
 
         // Screen shake update
-        const screenWidth = app.screen.width;
-        const screenHeight = app.screen.height;
-        const baseScale = Math.min(screenWidth / WIDTH, screenHeight / HEIGHT);
-        const baseX = (screenWidth - WIDTH * baseScale) / 2;
-        const baseY = (screenHeight - HEIGHT * baseScale) / 2;
-
         if (shakeDuration > 0) {
             shakeDuration--;
             const offsetX = (Math.random() - 0.5) * shakeIntensity * 2;
             const offsetY = (Math.random() - 0.5) * shakeIntensity * 2;
-            gameContainer.x = baseX + offsetX;
-            gameContainer.y = baseY + offsetY;
+            gameContainer.x = offsetX;
+            gameContainer.y = offsetY;
         } else {
-            gameContainer.x = baseX;
-            gameContainer.y = baseY;
+            gameContainer.x = 0;
+            gameContainer.y = 0;
         }
 
         // Hit stop freeze frame logic
@@ -337,7 +350,6 @@ async function init() {
 
             for (const enemy of enemies) {
                 if (enemy.update(grid)) {
-                    // Hit trail! Trigger hit stop and screen shake
                     triggerScreenShake(10, 12);
                     triggerHitStop(8);
 
@@ -347,6 +359,19 @@ async function init() {
                     player.onTrail = false;
                     player.direction = { dr: 0, dc: 0 };
                     particles.emit(player.x, player.y, 0xf87171, 40, 1.4);
+
+                    lives--;
+                    updateHUD();
+
+                    if (lives <= 0) {
+                        currentState = GameState.GAME_OVER;
+                        if (gameOverDescEl) {
+                            gameOverDescEl.textContent = `You ran out of lives on Level ${currentLevel}!`;
+                        }
+                        if (gameOverModalEl) {
+                            gameOverModalEl.classList.remove('hidden');
+                        }
+                    }
                 }
             }
         }
