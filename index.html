@@ -49,8 +49,12 @@
         z-index: 10;
         transition: opacity 0.3s ease;
       }
-      .ui-overlay.hidden {
-        opacity: 0;
+      .ui-overlay.hidden, .menu-overlay.hidden {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        display: none !important;
+      }
+      .hidden * {
         pointer-events: none !important;
       }
       .ui-top-bar {
@@ -226,10 +230,6 @@
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-      }
-      .menu-overlay.hidden {
-        opacity: 0;
-        pointer-events: none !important;
       }
       .menu-card {
         background: rgba(15, 23, 42, 0.88);
